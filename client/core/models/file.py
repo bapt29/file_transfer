@@ -25,9 +25,3 @@ class File:
             return False
 
         return True
-
-
-if __name__ == '__main__':
-    test_file = File("test.py", 15)
-
-    print(test_file.file)

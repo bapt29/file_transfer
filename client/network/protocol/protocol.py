@@ -2,8 +2,23 @@ import struct
 import json
 import binascii
 
+from typing import Tuple
+
+from client.errors.network_errors import *
+
 
 class Protocol:
+
+    @staticmethod
+    def extract_packet_code(data: bytes) -> Tuple[int, bytes]:
+        return data[0], data[1:]
+
+    @staticmethod
+    def unpack(data_format: str, data: bytes):
+        if len(data_format) == 1:
+            return struct.unpack(data_format, data[:struct.calcsize(data_format)])[0]
+        elif len(data_format) > 1:
+            return struct.unpack(data_format, data[:struct.calcsize(data_format)])
 
     @staticmethod
     def string_to_bytes(string: str) -> bytearray:
@@ -13,7 +28,15 @@ class Protocol:
         return bytearray(struct.pack("I%ss" % string_bytes_length, string_bytes_length, string_bytes))
 
     @staticmethod
-    def create_new_directory(name: str) -> bytearray:
+    def bytes_to_unsigned_int(data: bytes) -> int:
+        return Protocol.unpack("I", data)
+
+    @staticmethod
+    def bytes_to_bool(data) -> bool:
+        return Protocol.unpack("?", data)
+
+    @staticmethod
+    def send_create_new_directory(name: str) -> bytearray:
         code = 0x01
         data = bytearray()
 
@@ -23,12 +46,12 @@ class Protocol:
         return data
 
     @staticmethod
-    def send_new_file(name: str, size: int, chunk_size: int, checksum: str) -> bytearray:
+    def send_create_new_file(name: str, size: int, checksum: str) -> bytearray:
         code = 0x02
         data = bytearray()
         data.append(code)
 
-        file = {"name": name, "size": size, "chunk_size": chunk_size, "checksum": checksum}
+        file = {"name": name, "size": size, "checksum": checksum}
 
         file_data = Protocol.string_to_bytes(json.dumps(file))
         data.extend(file_data)
@@ -55,3 +78,29 @@ class Protocol:
         data.extend(header_bytes)
 
         return data
+
+    @staticmethod
+    def receive_chunk_size(data: bytes) -> int:
+        code, packet_data = Protocol.extract_packet_code(data)
+
+        if code != 0x01:
+            raise InvalidPacket(code)
+
+        return Protocol.bytes_to_unsigned_int(packet_data)
+
+    @staticmethod
+    def receive_confirmation_packet(data: bytes) -> bool:
+        code, packet_data = Protocol.extract_packet_code(data)
+
+        if code != 0x02:
+            raise InvalidPacket
+
+        return Protocol.bytes_to_bool(packet_data)
+
+    @staticmethod
+    def receive_file_chunk_integrity_confirmation(data: bytes) -> bool:
+        return Protocol.bytes_to_bool(data)
+
+    @staticmethod
+    def receive_file_integrity_confirmation(data: bytes) -> bool:
+        return struct.unpack("?", data)[0]

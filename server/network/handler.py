@@ -72,7 +72,7 @@ class Handler:
                 return False
 
     def create_new_directory(self):
-
+        pass
 
     def create_new_file(self):
         pass

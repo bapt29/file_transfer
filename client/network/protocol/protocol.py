@@ -80,6 +80,36 @@ class Protocol:
         return data
 
     @staticmethod
+    def send_end_of_file(name: str) -> bytearray:
+        code = 0x04
+        data = bytearray()
+
+        data.append(code)
+        data.extend(Protocol.string_to_bytes(name))
+
+        return data
+
+    @staticmethod
+    def send_end_of_directory(name: str):
+        code = 0x05
+        data = bytearray()
+
+        data.append(code)
+        data.extend(Protocol.string_to_bytes(name))
+
+        return data
+
+    @staticmethod
+    def send_file_transfer_abort(name: str) -> bytearray:
+        code = 0x06
+        data = bytearray()
+
+        data.append(code)
+        data.extend(Protocol.string_to_bytes(name))
+
+        return data
+
+    @staticmethod
     def receive_chunk_size(data: bytes) -> int:
         code, packet_data = Protocol.extract_packet_code(data)
 
@@ -93,14 +123,24 @@ class Protocol:
         code, packet_data = Protocol.extract_packet_code(data)
 
         if code != 0x02:
-            raise InvalidPacket
+            raise InvalidPacket(code)
 
         return Protocol.bytes_to_bool(packet_data)
 
     @staticmethod
     def receive_file_chunk_integrity_confirmation(data: bytes) -> bool:
+        code, packet_data = Protocol.extract_packet_code(data)
+
+        if code != 0x03:
+            raise InvalidPacket(code)
+
         return Protocol.bytes_to_bool(data)
 
     @staticmethod
     def receive_file_integrity_confirmation(data: bytes) -> bool:
-        return struct.unpack("?", data)[0]
+        code, packet_data = Protocol.extract_packet_code(data)
+
+        if code != 0x04:
+            raise InvalidPacket(code)
+
+        return Protocol.bytes_to_bool(data)

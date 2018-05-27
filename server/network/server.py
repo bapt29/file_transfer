@@ -3,6 +3,8 @@ import threading
 import signal
 import sys
 
+from server.network.handler import Handler
+
 
 class Server:
 
@@ -37,13 +39,16 @@ class Server:
         client_thread.start()
 
     def new_client(self, client_socket, client_address):
+        handler = Handler(client_socket, client_address)
+
         while self.running:
             data = client_socket.recv(1024)
 
             if not data:
                 break
 
-            print(data.decode())
+            handler.main_buffer.extend(bytearray(data))
+            handler.handle()
 
         client_socket.close()
         print("Client with address", client_address, "disconnected")

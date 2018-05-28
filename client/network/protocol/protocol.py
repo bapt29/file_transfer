@@ -69,10 +69,10 @@ class Protocol:
         data.append(code)
 
         header = {"file_name": file_name,
-                  "chunk_number": chunk_number,
-                  "chunk_size": len(chunk_data),
-                  "chunk_data": binascii.hexlify(chunk_data).decode(),
-                  "chunk_checksum": chunk_checksum}
+                  "number": chunk_number,
+                  "size": len(chunk_data),
+                  "data": binascii.hexlify(chunk_data).decode(),
+                  "checksum": chunk_checksum}
 
         header_bytes = Protocol.string_to_bytes(json.dumps(header))
         data.extend(header_bytes)
@@ -90,7 +90,7 @@ class Protocol:
         return data
 
     @staticmethod
-    def send_end_of_directory(name: str):
+    def send_end_of_directory(name: str) -> bytearray:
         code = 0x05
         data = bytearray()
 

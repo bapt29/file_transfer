@@ -8,8 +8,9 @@ from server.network.handler import Handler
 
 class Server:
 
-    def __init__(self, port):
+    def __init__(self, port, chunk_size):
         self.port = port
+        self.chunk_size = chunk_size
 
         self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.main_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -39,7 +40,7 @@ class Server:
         client_thread.start()
 
     def new_client(self, client_socket, client_address):
-        handler = Handler(client_socket, client_address)
+        handler = Handler(client_socket, client_address, self.chunk_size)
 
         while self.running:
             data = client_socket.recv(1024)

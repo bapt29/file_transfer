@@ -6,30 +6,8 @@ from server.errors.file_errors import *
 
 class FileManager:
 
-    def __init__(self):
-        self.files_dict = dict()
-
-    def add_file(self, file_id, path, size, checksum, chunk_size):
-        if file_id not in self.files_dict.keys():
-            raise IdAlreadyUsed
-
-        for file in self.files_dict.values():
-            if file.path == path:
-                raise FileAlreadyExists
-
-        if size == 0:
-            raise ZeroSize
-
-        self.files_dict[file_id] = File(file_id, path, size, checksum, chunk_size)
-
-    def get_file_by_id(self, file_id):
-        if file_id in self.files_dict.keys():
-            return self.files_dict[file_id]
-
-        return None
-
     @staticmethod
-    def is_checksum_match(data, checksum):
+    def is_chunk_checksum_match(data: bytes, checksum: str):
         checksum_function = hashlib.md5()
 
         checksum_function.update(data)
@@ -40,19 +18,29 @@ class FileManager:
 
         return False
 
-    def write_new_chunk(self, file_id, chunk_number, chunk_data, chunk_checksum):
-        file = self.get_file_by_id(file_id)
+    @staticmethod
+    def is_file_checksum_match(file: File):
+        if file.is_file_opened():
+            checksum_function = hashlib.md5()
 
-        if file is None:
-            raise FileNotFoundError
+            file.file.seek(0)
 
+            for chunk in iter(lambda: file.file.read(file.chunk_size), b""):
+                checksum_function.update(chunk)
+
+            file.checksum = checksum_function.hexdigest()
+
+    @staticmethod
+    def write_new_chunk(file: File, chunk_number: int, chunk_size: int, chunk_data: bytes, chunk_checksum: str):
         if chunk_number != file.current_chunk + 1:
             raise InvalidChunkNumber
 
-        if not file.is_checksum_match(chunk_data, chunk_checksum):
+        if not FileManager.is_chunk_checksum_match(chunk_data, chunk_checksum):
             raise ChecksumDoesNotMatch
 
         if not file.is_file_opened():
             file.open()
 
         file.write(chunk_data)
+        file.already_wrote_bytes += chunk_size
+        file.current_chunk += 1

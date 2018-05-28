@@ -141,6 +141,10 @@ class Main:
                     logging.CRITICAL("Server error")
                     sys.exit(1)
 
+                if not self.receive_packet(Protocol.receive_file_integrity_confirmation):
+                    logging.CRITICAL("File integrity check failed: trying to send file again...")
+                    self.send_file(file)
+
             except IOError as error:
                 if read_error < 3:
                     read_error += 1
@@ -178,6 +182,10 @@ class Main:
     def send_directory(self, current_directory: Directory):
         self.client.send(Protocol.send_create_new_directory(current_directory.name))
 
+        if not self.receive_packet(Protocol.receive_confirmation_packet):
+            logging.CRITICAL("Directory could not be sent")
+            return
+
         for file in current_directory.files_list:
             self.send_file(file)
 
@@ -185,3 +193,7 @@ class Main:
             self.send_directory(sub_directory)
 
         self.client.send(Protocol.send_end_of_directory(current_directory.name))
+
+        if not self.receive_packet(Protocol.receive_confirmation_packet):
+            logging.CRITICAL("Directory could not be sent")
+            return

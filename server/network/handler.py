@@ -1,11 +1,20 @@
 import struct
 import json
+import os
+
+from server.core.models.file import File
+from server.core.managers.file_manager import FileManager
+
+from server.network.protocol import Protocol
+
+from server.errors.file_errors import *
 
 
 class Handler:
 
-    def __init__(self, client_socket, client_address):
+    def __init__(self, client_socket, client_address, chunk_size):
         self.base_path = "/home/user/"  # put this in config file
+        self.current_path = self.base_path
 
         self.client_socket = client_socket
         self.client_address = client_address
@@ -15,13 +24,14 @@ class Handler:
 
         self.missing_packet_bytes = int()
 
-        self.deserialized_packet = str()
+        self.current_file = None
+
+        self.chunk_size = chunk_size
 
     def handle(self) -> None:
-        if not self.get_last_packet(): # Incomplete packet
+        if not self.get_last_packet():  # Incomplete packet
             return
 
-        self.packet_deserialize()
         code = self.packet_buffer[0]
 
         if code == 0x01:
@@ -39,8 +49,11 @@ class Handler:
         else:
             return  # fix that case
 
-    def packet_deserialize(self):
-        self.deserialized_packet = json.loads(self.packet_buffer[5:])
+    def packet_json_deserialize(self) -> dict:
+        return json.loads(self.packet_buffer[5:])
+
+    def packet_string_decode(self) -> str:
+        return self.packet_buffer[5:].decode()
 
     def get_last_packet(self) -> bool:
         if len(self.packet_buffer) == 0:
@@ -72,19 +85,62 @@ class Handler:
                 return False
 
     def create_new_directory(self):
-        pass
+        new_directory_path = self.current_path+self.packet_string_decode()
+
+        os.mkdir(new_directory_path)
+        self.current_path = new_directory_path+"/"
 
     def create_new_file(self):
-        pass
+        if self.current_file is not None:
+            self.client_socket.send(Protocol.confirmation_packet(False))
+            return
+
+        file_dict = self.packet_json_deserialize()
+        file_path = self.current_path+file_dict["name"]
+
+        self.current_file = File(file_path,
+                                 file_dict["size"],
+                                 file_dict["checksum"],
+                                 self.chunk_size)
+
+        self.client_socket.send(Protocol.confirmation_packet(True))
 
     def receive_file_chunk(self):
-        pass
+        file_chunk = self.packet_json_deserialize()
+
+        try:
+            FileManager.write_new_chunk(self.current_file,
+                                        file_chunk["number"],
+                                        file_chunk["size"],
+                                        file_chunk["data"],
+                                        file_chunk["checksum"])
+        except InvalidChunkNumber:
+            self.client_socket.send(Protocol.confirmation_packet(False))
+            return
+        except ChecksumDoesNotMatch:
+            self.client_socket.send(Protocol.file_chunk_integrity_confirmation(False))
+            return
+
+        self.client_socket.send(Protocol.file_chunk_integrity_confirmation(True))
 
     def end_of_file(self):
-        pass
+        self.client_socket.send(Protocol.confirmation_packet(True))
+
+        if not FileManager.is_file_checksum_match(self.current_file):
+            self.client_socket.send(Protocol.file_integrity_confirmation(False))
+
+            file_name = self.current_file.name
+
+            del self.current_file
+            self.current_file = None
+            os.remove(self.current_path+file_name)
+
+            return
+
+        del self.current_file
+        self.current_file = None
 
     def end_of_directory(self):
-        pass
+        self.current_path = self.current_path.split("/")[-1]
 
     def transfer_abort(self):
-        pass

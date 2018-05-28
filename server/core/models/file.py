@@ -1,16 +1,19 @@
 class File:
 
-    def __init__(self, file_id, path, size, checksum, chunk_size):
+    def __init__(self, path, size, checksum, chunk_size):
         self.path = path
-        self.id = file_id
         self.file = None
         self.size = size
         self.checksum = checksum
 
         self.chunk_size = chunk_size * 1000  # Chunk in Ko
         self.current_chunk = 0
+        self.already_wrote_bytes = 0
 
         self.open()
+
+    def __del__(self):
+        self.close()
 
     def is_file_opened(self):
         if self.file is None:
@@ -32,3 +35,7 @@ class File:
             raise IOError(error)
         else:
             self.current_chunk += 1
+
+    def close(self):
+        if self.file is not None:
+            self.file.close()

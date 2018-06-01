@@ -20,17 +20,26 @@ from client.errors.network_errors import *
 
 class Main:
 
-    def __init__(self, ip_address, port, verbosity_level):
+    def __init__(self, ip_address, port, verbosity_level=None, files_path_list=None, directories_path_list=None):
         self.client = Client(ip_address, port)
 
+        self.files_path_list = files_path_list
+        self.directories_path_list = directories_path_list
+
+        self.logger = logging.getLogger("main")
+        
         if verbosity_level == 3:
-            logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.DEBUG)
+            self.logger.setLevel(logging.DEBUG)
         elif verbosity_level == 2:
-            logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.INFO)
+            self.logger.setLevel(logging.INFO)
         elif verbosity_level == 1:
-            logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.ERROR)
+            self.logger.setLevel(logging.ERROR)
         else:
-            logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.CRITICAL)
+            self.logger.setLevel(logging.CRITICAL)
+
+        if files_path_list is None and directories_path_list is None:
+            self.logger.critical("No paths were entered")
+            self.exit(1)
 
         self.chunk_size = None
 
@@ -52,18 +61,18 @@ class Main:
         try:
             response = protocol_function(self.client.receive())
         except InvalidPacket as error:
-            logging.CRITICAL("Unexpected error while connecting to the server")
-            logging.ERROR("Invalid packet received")
-            logging.DEBUG("Packet type: %s" % error)
+            self.logger.critical("Unexpected error while connecting to the server")
+            self.logger.error("Invalid packet received")
+            self.logger.debug("Packet type: %s" % error)
 
             self.exit(1)
         except socket.error as error:
-            logging.CRITICAL("Connection error")
-            logging.ERROR("Socket error: ", error.strerror)
+            self.logger.critical("Connection error")
+            self.logger.error("Socket error: %s" % error.strerror)
 
             self.exit(1)
         except:
-            logging.CRITICAL("Unexpected error occurred")
+            self.logger.critical("Unexpected error occurred")
 
             self.exit(1)
         else:
@@ -73,39 +82,46 @@ class Main:
         self.client.send(Protocol.send_file_transfer_abort(file_name))
 
         if not self.receive_packet(Protocol.receive_confirmation_packet):
-            logging.DEBUG("abort file transfer confirmation failed")
-            logging.CRITICAL("Server error")
+            self.logger.debug("abort file transfer confirmation failed")
+            self.logger.critical("Server error")
             sys.exit(1)
 
     def main(self) -> None:
         try:
             self.client.connect()
         except socket.error as e:
-            logging.CRITICAL("Impossible to connect on %s:%s", self.client.ip_address, self.client.port)
-            logging.WARNING("Connection error:", e.strerror)
+            self.logger.critical("Impossible to connect on %s:%s" % self.client.ip_address, self.client.port)
+            self.logger.warning("Connection error: %s" % e.strerror)
 
             self.exit(1)
 
-        logging.INFO("Receiving chunk size from server...", end="")
+        self.logger.info("Receiving chunk size from server...")
         self.chunk_size = self.receive_packet(Protocol.receive_chunk_size)
-        logging.INFO(" done.")
+        self.logger.info("Done.")
 
-        logging.DEBUG("Chunk size: %d Ko" % self.chunk_size)
+        self.logger.debug("Chunk size: %d Ko" % self.chunk_size)
 
         self.file_controller = FileController(self.chunk_size)
         self.directory_controller = DirectoryController(self.chunk_size)
 
-        self.send_single_files()
-        self.send_directories()
+        if self.files_path_list is not None:
+            self.file_controller.from_list(self.files_path_list)
+            self.send_single_files()
+
+        if self.directories_path_list is not None:
+            self.directory_controller.from_list(self.directories_path_list)
+            self.send_directories()
+
+        self.exit(0)
 
     def send_single_files(self):
-        logging.INFO("Sending single files...")
+        self.logger.info("Sending single files...")
 
         for file in self.file_controller.files_list:
             self.send_file(file)
 
     def send_directories(self):
-        logging.INFO("Sending directories...")
+        self.logger.info("Sending directories...")
 
         for main_directory in self.directory_controller.root_directories_list:
             self.send_directory(main_directory)
@@ -117,7 +133,7 @@ class Main:
         self.client.send(Protocol.send_create_new_file(file.name, file.size, file.checksum))
 
         if not self.receive_packet(Protocol.receive_confirmation_packet):
-            logging.CRITICAL("File could not be sent")
+            self.logger.critical("File could not be sent")
             return
 
         response = True
@@ -133,16 +149,16 @@ class Main:
             try:
                 self.file_controller.read(file)
             except EndOfFile:
-                logging.DEBUG("send eof packet")
+                self.logger.debug("send eof packet")
                 self.client.send(Protocol.send_end_of_file(file.name))
 
-                if not self.file_controller(Protocol.receive_confirmation_packet):
-                    logging.DEBUG("confirmation failed")
-                    logging.CRITICAL("Server error")
+                if not self.receive_packet(Protocol.receive_confirmation_packet):
+                    self.logger.debug("confirmation failed")
+                    self.logger.critical("Server error")
                     sys.exit(1)
 
                 if not self.receive_packet(Protocol.receive_file_integrity_confirmation):
-                    logging.CRITICAL("File integrity check failed: trying to send file again...")
+                    self.logger.critical("File integrity check failed: trying to send file again...")
                     self.send_file(file)
 
             except IOError as error:
@@ -150,10 +166,10 @@ class Main:
                     read_error += 1
                     continue
 
-                logging.INFO("File read error: ", error.strerror)
+                self.logger.info("File read error: ", error.strerror)
 
                 self.abort_file_transfer(file.name)
-                logging.CRITICAL("File transfer aborted: could not read the file")
+                self.logger.critical("File transfer aborted: could not read the file")
 
                 return False
             else:
@@ -162,10 +178,10 @@ class Main:
 
                 while not integrity_confirmed:
                     if limit > 5:
-                        logging.DEBUG("chunk integrity confirmation failed")
+                        self.logger.debug("chunk integrity confirmation failed")
 
                         self.abort_file_transfer(file.name)
-                        logging.CRITICAL("File transfer aborted: integrity check failure")
+                        self.logger.critical("File transfer aborted: integrity check failure")
 
                         return False
 
@@ -183,7 +199,7 @@ class Main:
         self.client.send(Protocol.send_create_new_directory(current_directory.name))
 
         if not self.receive_packet(Protocol.receive_confirmation_packet):
-            logging.CRITICAL("Directory could not be sent")
+            self.logger.critical("Directory could not be sent")
             return
 
         for file in current_directory.files_list:
@@ -195,5 +211,20 @@ class Main:
         self.client.send(Protocol.send_end_of_directory(current_directory.name))
 
         if not self.receive_packet(Protocol.receive_confirmation_packet):
-            logging.CRITICAL("Directory could not be sent")
+            self.logger.critical("Directory could not be sent")
             return
+
+
+if __name__ == '__main__':
+    import argparse
+
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--ip_address", "-i", help="server ip address", required=True)
+    argument_parser.add_argument("--port", "-p", help="server port", type=int, required=True)
+    argument_parser.add_argument("--verbosity", "-v", help="verbosity level", action="count")
+    argument_parser.add_argument("--files_path", "-f", nargs='*', help="File paths to transfer")
+    argument_parser.add_argument("--directories_path", "-d", nargs='*', help="Directories paths to transfer")
+
+    args = argument_parser.parse_args()
+
+    Main(args.ip_address, args.port, args.verbosity, args.files_path, args.directories_path)

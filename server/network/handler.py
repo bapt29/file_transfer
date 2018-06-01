@@ -1,4 +1,5 @@
 import struct
+import binascii
 import json
 import os
 
@@ -12,8 +13,8 @@ from server.errors.file_errors import *
 
 class Handler:
 
-    def __init__(self, client_socket, client_address, chunk_size):
-        self.base_path = "/home/user/"  # put this in config file
+    def __init__(self, client_socket, client_address, chunk_size, default_path):
+        self.base_path = default_path
         self.current_path = self.base_path
 
         self.client_socket = client_socket
@@ -45,15 +46,17 @@ class Handler:
         elif code == 0x05:
             self.end_of_directory()
         elif code == 0x06:
-            self.transfer_abort()
+            self.file_transfer_abort()
         else:
-            return  # fix that case
+            return
 
     def packet_json_deserialize(self) -> dict:
         return json.loads(self.packet_buffer[5:])
 
     def packet_string_decode(self) -> str:
-        return self.packet_buffer[5:].decode()
+        packet_string = self.packet_buffer[5:].decode()
+
+        return packet_string
 
     def get_last_packet(self) -> bool:
         if len(self.packet_buffer) == 0:
@@ -85,10 +88,17 @@ class Handler:
                 return False
 
     def create_new_directory(self):
-        new_directory_path = self.current_path+self.packet_string_decode()
+        packet_string = self.packet_string_decode()
+
+        if len(packet_string) == 0:
+            self.client_socket.send(Protocol.confirmation_packet(False))
+            return
+
+        new_directory_path = self.current_path+packet_string
 
         os.mkdir(new_directory_path)
         self.current_path = new_directory_path+"/"
+        del self.packet_buffer[:]
 
     def create_new_file(self):
         if self.current_file is not None:
@@ -104,6 +114,7 @@ class Handler:
                                  self.chunk_size)
 
         self.client_socket.send(Protocol.confirmation_packet(True))
+        del self.packet_buffer[:]
 
     def receive_file_chunk(self):
         file_chunk = self.packet_json_deserialize()
@@ -112,7 +123,7 @@ class Handler:
             FileManager.write_new_chunk(self.current_file,
                                         file_chunk["number"],
                                         file_chunk["size"],
-                                        file_chunk["data"],
+                                        binascii.unhexlify(file_chunk["data"]),
                                         file_chunk["checksum"])
         except InvalidChunkNumber:
             self.client_socket.send(Protocol.confirmation_packet(False))
@@ -122,6 +133,7 @@ class Handler:
             return
 
         self.client_socket.send(Protocol.file_chunk_integrity_confirmation(True))
+        del self.packet_buffer[:]
 
     def end_of_file(self):
         self.client_socket.send(Protocol.confirmation_packet(True))
@@ -134,13 +146,27 @@ class Handler:
             del self.current_file
             self.current_file = None
             os.remove(self.current_path+file_name)
+            del self.packet_buffer[:]
 
             return
 
         del self.current_file
         self.current_file = None
+        del self.packet_buffer[:]
 
     def end_of_directory(self):
-        self.current_path = self.current_path.split("/")[-1]
+        self.current_path = "/".join(self.current_path.split("/")[:-2])+"/"
+        del self.packet_buffer[:]
 
-    def transfer_abort(self):
+    def file_transfer_abort(self):
+        del self.current_file
+        os.remove(self.current_path+self.current_file.name)
+        self.current_file = None
+        del self.packet_buffer[:]
+
+    def send_chunk_size(self):
+        data = bytearray()
+        data.append(0x01)
+
+        data.extend(bytearray(struct.pack("I", self.chunk_size)))
+        self.client_socket.send(data)

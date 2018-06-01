@@ -22,7 +22,7 @@ class File:
         return True
 
     def open(self):
-        if self.is_file_opened():
+        if not self.is_file_opened():
             self.file = open(self.path, "wb")
 
     def write(self, data):

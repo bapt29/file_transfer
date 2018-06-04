@@ -26,6 +26,12 @@ class Main:
         self.files_path_list = files_path_list
         self.directories_path_list = directories_path_list
 
+        self.file_controller = FileController
+        self.directory_controller = DirectoryController
+
+        self.files_list = None
+        self.directories_list = None
+
         self.logger = logging.getLogger("main")
         
         if verbosity_level == 3:
@@ -101,15 +107,12 @@ class Main:
 
         self.logger.debug("Chunk size: %d Ko" % self.chunk_size)
 
-        self.file_controller = FileController(self.chunk_size)
-        self.directory_controller = DirectoryController(self.chunk_size)
-
         if self.files_path_list is not None:
-            self.file_controller.from_list(self.files_path_list)
+            self.file_controller.from_path_list(self.files_path_list, self.chunk_size)
             self.send_single_files()
 
         if self.directories_path_list is not None:
-            self.directory_controller.from_list(self.directories_path_list)
+            self.directory_controller.from_path_list(self.directories_path_list, self.chunk_size)
             self.send_directories()
 
         self.exit(0)
@@ -117,13 +120,13 @@ class Main:
     def send_single_files(self):
         self.logger.info("Sending single files...")
 
-        for file in self.file_controller.files_list:
+        for file in self.files_list:
             self.send_file(file)
 
     def send_directories(self):
         self.logger.info("Sending directories...")
 
-        for main_directory in self.directory_controller.root_directories_list:
+        for main_directory in self.directories_list:
             self.send_directory(main_directory)
 
     def send_file(self, file: File):
@@ -222,7 +225,7 @@ if __name__ == '__main__':
     argument_parser.add_argument("--ip_address", "-i", help="server ip address", required=True)
     argument_parser.add_argument("--port", "-p", help="server port", type=int, required=True)
     argument_parser.add_argument("--verbosity", "-v", help="verbosity level", action="count")
-    argument_parser.add_argument("--files_path", "-f", nargs='*', help="File paths to transfer")
+    argument_parser.add_argument("--files_path", "-f", nargs='*', help="Files paths to transfer")
     argument_parser.add_argument("--directories_path", "-d", nargs='*', help="Directories paths to transfer")
 
     args = argument_parser.parse_args()

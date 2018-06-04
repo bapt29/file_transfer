@@ -1,5 +1,6 @@
 import os
 import hashlib
+from typing import List
 from datetime import datetime
 
 from client.core.models.file import File
@@ -7,23 +8,18 @@ from client.errors.file_errors import *
 
 
 class FileController:
-    def __init__(self, chunk_size: int):
-        self.files_list = list()
-        self.chunk_size = chunk_size
 
-    def add_file(self, path: str) -> None:
-        if self.is_file_already_in_list(path):
-            return None
+    @staticmethod
+    def from_path_list(path_list: List[str], chunk_size: int) -> List[File]:
+        file_list = list()
 
-        new_file = File(path, self.chunk_size)
-        self.files_list.append(new_file)
+        for path in path_list:
+            try:
+                file_list.append(File(path, chunk_size))
+            except FileExistsError:
+                pass  # TODO: Implement
 
-    def is_file_already_in_list(self, path: str) -> bool:
-        for file in self.files_list:
-            if file.path == path:
-                return True
-
-        return False
+        return file_list
 
     @staticmethod
     def set_name(file: File) -> None:

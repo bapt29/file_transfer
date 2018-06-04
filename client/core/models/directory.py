@@ -3,9 +3,7 @@ import os
 
 class Directory:
 
-    def __init__(self, path: str, chunk_size: int, level=0):
-        self.chunk_size = chunk_size
-
+    def __init__(self, path: str, level=0):
         if not os.path.isdir(path):
             raise NotADirectoryError
 

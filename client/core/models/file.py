@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 from client.errors.file_errors import *
 
@@ -7,7 +8,7 @@ class File:
 
     def __init__(self, path: str, chunk_size: int):
         if not os.path.isfile(path):
-            raise FileNotFound
+            raise FileExistsError
 
         self.path = path
         self.name = None

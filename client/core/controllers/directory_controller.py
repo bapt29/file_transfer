@@ -8,9 +8,7 @@ from client.core.models.file import File
 class DirectoryController:
 
     @staticmethod
-    def from_path_list(path_list: List[str], chunk_size: int) -> List[Directory]:
-        directory_list = list()
-
+    def from_path_list(path_list: List[str], directory_list: List[Directory], chunk_size: int) -> List[Directory]:
         for path in path_list:
             try:
                 new_directory = Directory(path)
@@ -19,8 +17,6 @@ class DirectoryController:
             else:
                 directory_list.append(new_directory)
                 DirectoryController.set_content(new_directory, chunk_size)
-
-        return directory_list
 
     @staticmethod
     def set_name(directory: Directory) -> None:

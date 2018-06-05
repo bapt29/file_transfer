@@ -26,11 +26,8 @@ class Main:
         self.files_path_list = files_path_list
         self.directories_path_list = directories_path_list
 
-        self.file_controller = FileController
-        self.directory_controller = DirectoryController
-
-        self.files_list = None
-        self.directories_list = None
+        self.files_list = list()
+        self.directories_list = list()
 
         self.logger = logging.getLogger("main")
         
@@ -43,14 +40,11 @@ class Main:
         else:
             self.logger.setLevel(logging.CRITICAL)
 
-        if files_path_list is None and directories_path_list is None:
+        if len(files_path_list) < 1 and len(directories_path_list) < 1:
             self.logger.critical("No paths were entered")
             self.exit(1)
 
         self.chunk_size = None
-
-        self.directory_controller = None
-        self.file_controller = None
 
         self.file_view = FileView
 
@@ -108,11 +102,11 @@ class Main:
         self.logger.debug("Chunk size: %d Ko" % self.chunk_size)
 
         if self.files_path_list is not None:
-            self.file_controller.from_path_list(self.files_path_list, self.chunk_size)
+            FileController.from_path_list(self.files_path_list, self.files_list, self.chunk_size)
             self.send_single_files()
 
         if self.directories_path_list is not None:
-            self.directory_controller.from_path_list(self.directories_path_list, self.chunk_size)
+            FileController.from_path_list(self.directories_path_list, self.directories_list, self.chunk_size)
             self.send_directories()
 
         self.exit(0)
@@ -130,7 +124,7 @@ class Main:
             self.send_directory(main_directory)
 
     def send_file(self, file: File):
-        self.file_controller.open(file)
+        FileController.open(file)
         self.file_view.display(file)
 
         self.client.send(Protocol.send_create_new_file(file.name, file.size, file.checksum))
@@ -150,7 +144,7 @@ class Main:
             read_error = 0
 
             try:
-                self.file_controller.read(file)
+                FileController.read(file)
             except EndOfFile:
                 self.logger.debug("send eof packet")
                 self.client.send(Protocol.send_end_of_file(file.name))

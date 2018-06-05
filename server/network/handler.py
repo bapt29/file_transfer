@@ -58,7 +58,7 @@ class Handler:
 
         return packet_string
 
-    def get_last_packet(self) -> bool:
+    def get_last_packet(self) -> bool:  # TODO: test this method
         if len(self.packet_buffer) == 0:
             if len(self.main_buffer) >= 5:
                 packet_size = struct.unpack("I", self.main_buffer[1:5])[0]
@@ -127,12 +127,11 @@ class Handler:
                                         file_chunk["checksum"])
         except InvalidChunkNumber:
             self.client_socket.send(Protocol.confirmation_packet(False))
-            return
         except ChecksumDoesNotMatch:
             self.client_socket.send(Protocol.file_chunk_integrity_confirmation(False))
-            return
+        else:
+            self.client_socket.send(Protocol.file_chunk_integrity_confirmation(True))
 
-        self.client_socket.send(Protocol.file_chunk_integrity_confirmation(True))
         del self.packet_buffer[:]
 
     def end_of_file(self):

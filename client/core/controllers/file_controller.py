@@ -9,17 +9,16 @@ from client.errors.file_errors import *
 
 class FileController:
 
-    @staticmethod
-    def from_path_list(path_list: List[str], chunk_size: int) -> List[File]:
-        file_list = list()
+    def __init__(self):
+        pass
 
+    @staticmethod
+    def from_path_list(path_list: List[str], file_list: List[File], chunk_size: int) -> List[File]:
         for path in path_list:
             try:
                 file_list.append(File(path, chunk_size))
             except FileExistsError:
                 pass  # TODO: Implement
-
-        return file_list
 
     @staticmethod
     def set_name(file: File) -> None:
@@ -60,7 +59,7 @@ class FileController:
     @staticmethod
     def open(file: File) -> None:
         if file.is_opened():
-            return None
+            return
 
         file.file_object = open(file.path, "rb")
 

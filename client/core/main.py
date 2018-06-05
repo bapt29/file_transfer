@@ -40,7 +40,7 @@ class Main:
         else:
             self.logger.setLevel(logging.CRITICAL)
 
-        if len(files_path_list) < 1 and len(directories_path_list) < 1:
+        if files_path_list is None and directories_path_list is None:
             self.logger.critical("No paths were entered")
             self.exit(1)
 
@@ -90,7 +90,7 @@ class Main:
         try:
             self.client.connect()
         except socket.error as e:
-            self.logger.critical("Impossible to connect on %s:%s" % self.client.ip_address, self.client.port)
+            self.logger.critical("Impossible to connect on %s:%s" % (self.client.ip_address, self.client.port))
             self.logger.warning("Connection error: %s" % e.strerror)
 
             self.exit(1)

@@ -8,7 +8,6 @@ class File:
 
         self.chunk_size = chunk_size * 1000  # Chunk in Ko
         self.current_chunk = 0
-        self.already_wrote_bytes = 0
 
         self.open()
 
@@ -21,9 +20,9 @@ class File:
 
         return True
 
-    def open(self):
+    def open(self, mode="wb"):
         if not self.is_file_opened():
-            self.file = open(self.path, "wb")
+            self.file = open(self.path, mode)
 
     def write(self, data):
         if not self.is_file_opened():
@@ -33,9 +32,14 @@ class File:
             self.file.write(data)
         except IOError as error:
             raise IOError(error)
-        else:
-            self.current_chunk += 1
+
+    def read(self, size):
+        if not self.is_file_opened():
+            self.open("rb")
+
+        return self.file.read(size)
 
     def close(self):
         if self.file is not None:
             self.file.close()
+            self.file = None

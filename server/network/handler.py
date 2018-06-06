@@ -58,7 +58,7 @@ class Handler:
 
         return packet_string
 
-    def get_last_packet(self) -> bool:  # TODO: test this method
+    def get_last_packet(self) -> bool:
         if len(self.packet_buffer) == 0:
             if len(self.main_buffer) >= 5:
                 packet_size = struct.unpack("I", self.main_buffer[1:5])[0]
@@ -100,6 +100,9 @@ class Handler:
 
         os.mkdir(new_directory_path)
         self.current_path = new_directory_path+"/"
+
+        self.client_socket.send(Protocol.confirmation_packet(True))
+
         del self.packet_buffer[:]
 
     def create_new_file(self):
@@ -124,7 +127,6 @@ class Handler:
         try:
             FileManager.write_new_chunk(self.current_file,
                                         file_chunk["number"],
-                                        file_chunk["size"],
                                         binascii.unhexlify(file_chunk["data"]),
                                         file_chunk["checksum"])
         except InvalidChunkNumber:
@@ -142,22 +144,24 @@ class Handler:
         if not FileManager.is_file_checksum_match(self.current_file):
             self.client_socket.send(Protocol.file_integrity_confirmation(False))
 
-            file_name = self.current_file.name
-
+            os.remove(self.current_file.path)
             del self.current_file
             self.current_file = None
-            os.remove(self.current_path+file_name)
             del self.packet_buffer[:]
 
             return
 
-        del self.current_file
+        self.client_socket.send(Protocol.file_integrity_confirmation(True))
+
+        self.current_file.close()
         self.current_file = None
         del self.packet_buffer[:]
 
     def end_of_directory(self):
         self.current_path = "/".join(self.current_path.split("/")[:-2])+"/"
         del self.packet_buffer[:]
+
+        self.client_socket.send(Protocol.confirmation_packet(True))
 
     def file_transfer_abort(self):
         del self.current_file

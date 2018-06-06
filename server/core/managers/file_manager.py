@@ -7,31 +7,30 @@ from server.errors.file_errors import *
 class FileManager:
 
     @staticmethod
-    def is_chunk_checksum_match(data: bytes, checksum: str):
+    def is_chunk_checksum_match(data: bytes, checksum: str) -> bool:
         checksum_function = hashlib.md5()
 
         checksum_function.update(data)
         expected_checksum = checksum_function.hexdigest()
 
-        if checksum == expected_checksum:
-            return True
-
-        return False
+        return checksum == expected_checksum
 
     @staticmethod
-    def is_file_checksum_match(file: File):
+    def is_file_checksum_match(file: File) -> bool:
         if file.is_file_opened():
-            checksum_function = hashlib.md5()
+            file.close()
 
-            file.file.seek(0)
+        checksum_function = hashlib.md5()
 
-            for chunk in iter(lambda: file.file.read(file.chunk_size), b""):
-                checksum_function.update(chunk)
+        file.open("rb")
 
-            file.checksum = checksum_function.hexdigest()
+        for chunk in iter(lambda: file.read(file.chunk_size), b""):
+            checksum_function.update(chunk)
+
+        return file.checksum == checksum_function.hexdigest()
 
     @staticmethod
-    def write_new_chunk(file: File, chunk_number: int, chunk_size: int, chunk_data: bytes, chunk_checksum: str):
+    def write_new_chunk(file: File, chunk_number: int, chunk_data: bytes, chunk_checksum: str):
         if chunk_number != file.current_chunk + 1:
             raise InvalidChunkNumber
 
@@ -42,5 +41,4 @@ class FileManager:
             file.open()
 
         file.write(chunk_data)
-        file.already_wrote_bytes += chunk_size
         file.current_chunk += 1

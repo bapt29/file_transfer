@@ -69,11 +69,13 @@ class Handler:
 
                     return True
                 else:
-                    self.packet_buffer.extend(self.main_buffer[:-1])
+                    self.packet_buffer.extend(self.main_buffer)
                     self.missing_packet_bytes = (packet_size+5) - len(self.main_buffer)
                     del self.main_buffer[:]
 
                     return False
+            else:
+                return False
         else:
             if len(self.main_buffer) >= self.missing_packet_bytes:
                 self.packet_buffer.extend(self.main_buffer[:self.missing_packet_bytes])
@@ -81,7 +83,7 @@ class Handler:
 
                 return True
             else:
-                self.packet_buffer.extend(self.main_buffer[:-1])
+                self.packet_buffer.extend(self.main_buffer)
                 self.missing_packet_bytes -= len(self.main_buffer)
                 del self.main_buffer[:]
 
@@ -169,3 +171,17 @@ class Handler:
 
         data.extend(bytearray(struct.pack("I", self.chunk_size)))
         self.client_socket.send(data)
+
+
+if __name__ == '__main__':
+    test_handler = Handler("test", "test", 15, "test")
+
+    test_handler.main_buffer.append(0x01)
+    test_handler.main_buffer.extend(bytearray(struct.pack("I", 4)))
+    test_handler.main_buffer.extend(bytearray(b"te"))
+
+    test_handler.get_last_packet()
+    print("")
+    test_handler.main_buffer.extend(bytearray(b"t"))
+    print(test_handler.get_last_packet())
+    print("")

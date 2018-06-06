@@ -72,8 +72,8 @@ class Main:
 
             self.exit(1)
         except:
-            self.logger.critical("Unexpected error occurred")
-
+            self.logger.critical("Unexpected error occurred: ", sys.exc_info()[0])
+            raise
             self.exit(1)
         else:
             return response
@@ -106,7 +106,7 @@ class Main:
             self.send_single_files()
 
         if self.directories_path_list is not None:
-            FileController.from_path_list(self.directories_path_list, self.directories_list, self.chunk_size)
+            DirectoryController.from_path_list(self.directories_path_list, self.directories_list, self.chunk_size)
             self.send_directories()
 
         self.exit(0)
@@ -152,11 +152,13 @@ class Main:
                 if not self.receive_packet(Protocol.receive_confirmation_packet):
                     self.logger.debug("confirmation failed")
                     self.logger.critical("Server error")
-                    sys.exit(1)
+                    self.exit(1)
 
                 if not self.receive_packet(Protocol.receive_file_integrity_confirmation):
                     self.logger.critical("File integrity check failed: trying to send file again...")
                     self.send_file(file)
+
+                return False
 
             except IOError as error:
                 if read_error < 3:

@@ -13,7 +13,7 @@ class FileController:
         pass
 
     @staticmethod
-    def from_path_list(path_list: List[str], file_list: List[File], chunk_size: int) -> List[File]:
+    def from_path_list(path_list: List[str], file_list: List[File], chunk_size: int):
         for path in path_list:
             try:
                 file_list.append(File(path, chunk_size))

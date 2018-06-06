@@ -20,7 +20,7 @@ class DirectoryController:
 
     @staticmethod
     def set_name(directory: Directory) -> None:
-        directory.name = directory.path.split("/")[-1]
+        directory.name = directory.path.split("/")[-2]
 
     @staticmethod
     def set_content(directory: Directory, chunk_size: int) -> None:

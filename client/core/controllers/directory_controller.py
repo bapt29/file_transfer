@@ -30,7 +30,7 @@ class DirectoryController:
             element_path = os.path.join(directory.path, element)
 
             if os.path.isdir(element_path):
-                new_directory = Directory(element_path, directory.level + 1)
+                new_directory = Directory(element_path+"/", directory.level + 1)
 
                 directory.sub_directories_list.append(new_directory)
                 DirectoryController.set_content(new_directory, chunk_size)

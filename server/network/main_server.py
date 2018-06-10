@@ -18,7 +18,7 @@ class Server:
 
         self.port = 1234
         self.chunk_size = 15
-        self.default_path = "/home/user/transferred_files"
+        self.default_path = "/home/user/transferred_files/"
 
         self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.main_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

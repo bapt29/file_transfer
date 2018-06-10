@@ -15,7 +15,7 @@ class FileView:
                              FileView.display_progress_bar(file.total_bytes_sent, file.size),
                              FileView.display_percentage(file.total_bytes_sent, file.size))
 
-        sys.stdout.write("%s   %s   %s   %s  %s %s" % values_to_display)
+        sys.stdout.write("%s   %s   %s   %s  %s %s\n" % values_to_display)
 
     @staticmethod
     def update(file: File):

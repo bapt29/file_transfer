@@ -98,10 +98,13 @@ class Handler:
 
         new_directory_path = self.current_path+packet_string
 
-        os.mkdir(new_directory_path)
-        self.current_path = new_directory_path+"/"
-
-        self.client_socket.send(Protocol.confirmation_packet(True))
+        try:
+            os.mkdir(new_directory_path)
+        except FileExistsError:
+            self.client_socket.send(Protocol.confirmation_packet(False))
+        else:
+            self.current_path = new_directory_path+"/"
+            self.client_socket.send(Protocol.confirmation_packet(True))
 
         del self.packet_buffer[:]
 

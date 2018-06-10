@@ -136,7 +136,6 @@ class Main:
         response = True
 
         while response:
-            self.file_view.update(file)
             response = self.send_file_chunk(file)
 
     def send_file_chunk(self, file: File):
@@ -184,12 +183,14 @@ class Main:
 
                         return False
 
+                    FileController.update_last_chunk_time(file)
                     self.client.send(Protocol.send_file_chunk(file.name,
                                                               file.current_chunk,
                                                               file.current_chunk_data,
                                                               file.current_chunk_checksum))
 
                     integrity_confirmed = self.receive_packet(Protocol.receive_file_chunk_integrity_confirmation)
+                    self.file_view.update(file)
                     limit += 1
 
                 return True
@@ -198,7 +199,7 @@ class Main:
         self.client.send(Protocol.send_create_new_directory(current_directory.name))
 
         if not self.receive_packet(Protocol.receive_confirmation_packet):
-            self.logger.critical("Directory could not be sent")
+            self.logger.critical("Directory %s could not be sent" % current_directory.path)
             return
 
         for file in current_directory.files_list:
